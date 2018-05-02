@@ -1,0 +1,57 @@
+<project basedir="." xmlns:sf="antlib:com.salesforce">
+    
+ <property file="Build.properties"/>
+    <property environment="env"/>
+
+
+
+ <!-- Setting default value for username, password and session id properties to empty string 
+         so unset values are treated as empty. Without this, ant expressions such as ${sf.username}
+         will be treated literally.
+    -->
+   
+   <condition property="cisandbox.username" value=""> <not> <isset property="cisandbox.username"/> </not> </condition>
+   <condition property="cisandbox.password" value=""> <not> <isset property="cisandbox.password"/> </not> </condition>
+   <condition property="cisandbox.deployroot" value=""> <not> <isset property="cisandbox.deployroot"/>  </not> </condition>
+
+
+   
+
+<!--##################################################### Deploy #########################################-->
+ 
+	<target name="CIDeploy" depends="proxy">
+	<sf:deploy
+			username="${cisandbox.username}"
+			password="${cisandbox.password}"
+			serverurl="${sf.serverurl}"
+			maxPoll="${sf.maxPoll}" 
+			deployRoot="${cisandbox.deployroot}"			
+			rollbackOnError="true"
+			testlevel="RunLocalTests" 
+			logType="Detail" trace="false"/>
+  </target>
+
+
+ <!--##################################################### Set Proxy if Enabled #########################################-->
+
+	<target name="probe-proxy">
+   	 <condition property="proxy.enabled">
+      	<and>
+        <isset property="proxy.host"/>
+	<isreachable host="${proxy.host}"/>
+      </and>
+    </condition>
+  	</target>
+
+	<target name="proxy" depends="probe-proxy" if="proxy.enabled">
+		<property name="proxy.port" value="${proxy.port}" />
+
+		<setproxy 
+		proxyhost="${proxy.host}" 
+		proxyport="${proxy.port}" 
+		
+		/>
+	</target> 
+
+
+</project>

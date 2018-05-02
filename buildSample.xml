@@ -1,0 +1,126 @@
+<project name="Shivasoft ANT Tutorial" default="deployCode" basedir="." xmlns:sf="antlib:com.salesforce">
+    
+ <property file="build.properties"/>
+    <property environment="env"/>
+
+
+
+ <!-- Setting default value for username, password and session id properties to empty string 
+         so unset values are treated as empty. Without this, ant expressions such as ${sf.username}
+         will be treated literally.
+    -->
+    <condition property="Source.username" value=""> 
+	<not> 
+		<isset property="Source.username"/> 
+	</not> 
+    </condition>
+    <condition property="Source.password" value=""> <not> <isset property="Source.password"/> </not> </condition>
+    <condition property="Source.sessionId" value=""> <not> <isset property="Source.sessionId"/> </not> </condition>
+
+   <condition property="Target.username" value=""> 
+	<not> 
+		<isset property="Target.username"/> 
+	</not> 
+    </condition>
+    <condition property="Target.password" value=""> <not> <isset property="Target.password"/> </not> </condition>
+    <condition property="Target.sessionId" value=""> <not> <isset property="Target.sessionId"/> </not> </condition>
+
+    <!--##################################################### deployCode #########################################-->
+     
+    <target name="deployCode" depends="proxy">
+      <sf:deploy username="${Source.username}" password="${Source.password}" serverurl="${sf.serverurl}" deployRoot="mypkg" testLevel="RunSpecifiedTests" trace="false">
+        <runTest>TestClassName</runTest>
+      </sf:deploy>
+      <sf:deploy username="${Source.username}" password="${Source.password}" serverurl="${sf.serverurl}" deployRoot="codepkg" testLevel="RunSpecifiedTests" trace="false">
+        <runTest>SampleDeployClass</runTest>
+      </sf:deploy>
+    </target>
+
+   <!--##################################################### Retrieve #########################################-->
+     
+	<target name="Retrieve" depends="proxy">
+	  <sf:retrieve username="${Source.username}"
+				   password="${Source.password}"
+				   serverurl="${sf.serverurl}"
+				   retrieveTarget="${Source.retrieveTarget}"
+				   unpackaged="${Source.unpackaged}" trace="false"/>
+
+      
+
+<!--##################################################### Adding and Commiting all changes to Git #########################################-->
+
+  <echo message="Commiting all changes with message ${gt.commitMessage}" />
+		<git command="add" dir="${Source.gitDirectory}">
+			<args>
+				<arg value="." />
+			</args>
+		</git>
+		<git command="commit" dir="${Source.gitDirectory}">
+			<args>
+				<arg value="-am ${gt.commitMessage}" />
+			</args>
+		</git>
+	</target>
+
+<!--##################################################### Deploy #########################################-->
+ 
+	<target name="Deploy" depends="proxy">
+	<sf:deploy
+			username="${Target.username}"
+			password="${Target.password}"
+			serverurl="${sf.serverurl}"
+			deployRoot="${Target.retrieveTarget}"
+			runAllTests="true" trace="false"/>
+  </target>
+
+
+   <!--##################################################### undeployCode #########################################-->
+ 
+
+    <!-- Shows removing code; only succeeds if done after deployCode -->
+    <target name="undeployCode">
+      <sf:deploy username="${Source.username}" password="${Source.password}" serverurl="${sf.serverurl}" deployRoot="removecodepkg" testLevel="RunSpecifiedTests" trace="true"/>
+    </target>
+	
+
+
+	
+   <!--##################################################### Macro for Git #########################################-->
+
+	<macrodef name="git">
+		<attribute name="command" />
+		<attribute name="dir" />
+		<element name="args" optional="true" />
+		<sequential>
+            <echo message="Executing Command in folder @{dir}" />
+            <echo message="git @{command}" />
+			<exec executable="git" dir="@{dir}">
+				<arg value="@{command}" />
+				<args/>
+			</exec>
+		</sequential>
+	</macrodef>
+
+ <!--##################################################### Set Proxy if Enabled #########################################-->
+
+	<target name="probe-proxy">
+   	 <condition property="proxy.enabled">
+      	<and>
+        <isset property="proxy.host"/>
+	<isreachable host="${proxy.host}"/>
+      </and>
+    </condition>
+  	</target>
+
+	<target name="proxy" depends="probe-proxy" if="proxy.enabled">
+		<property name="proxy.port" value="${proxy.port}" />
+
+		<setproxy 
+		proxyhost="${proxy.host}" 
+		proxyport="${proxy.port}" 
+		
+		/>
+	</target> 
+
+
+</project>
